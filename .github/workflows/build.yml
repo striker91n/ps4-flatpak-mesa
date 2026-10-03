@@ -126,7 +126,7 @@ jobs:
             ls /usr/lib/pkgconfig 2>/dev/null | head -40
           '
 
-      - name: "PREFLIGHT 5 - build deps + full compile of patched Mesa (proves a build can be done)"
+      - name: "PREFLIGHT 5 - build deps + configure Mesa (no compile; flatpak-builder compiles once)"
         run: |
           set -e
           export PF="$GITHUB_WORKSPACE/preflight"
@@ -160,9 +160,7 @@ jobs:
               -Dvulkan-drivers=amd -Dplatforms=wayland,x11 \
               -Dllvm=disabled -Dglx=dri -Dgbm=enabled -Degl=enabled \
               -Dbuildtype=release -Dstrip=true
-            echo "===== Mesa compile ====="
-            ninja -C /tmp/mesa-build -j"$(nproc)"
-            echo "OK: deps + patched Mesa compiled successfully - a build can be done"
+            echo "OK: deps + Mesa configure succeeded (flatpak-builder does the single compile)"
           '
 
       # ============================ BUILD ============================

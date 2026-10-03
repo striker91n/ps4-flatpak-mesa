@@ -4,13 +4,8 @@ runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
 command: /bin/true
 build-options:
-  prefix: /usr
   strip: false
   no-debuginfo: true
-  env:
-    # keep the build lean
-    CFLAGS: "-O2"
-    CXXFLAGS: "-O2"
 modules:
   - name: python3-pyyaml
     buildsystem: simple
@@ -50,7 +45,7 @@ modules:
     build-options:
       env:
         PYTHONPATH: "/app/pylib"
-        PKG_CONFIG_PATH: "/app/usr/lib64/pkgconfig:/app/usr/lib/x86_64-linux-gnu/pkgconfig:/app/usr/lib/pkgconfig:/app/usr/share/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
+        PKG_CONFIG_PATH: "/app/lib64/pkgconfig:/app/lib/pkgconfig:/app/lib/x86_64-linux-gnu/pkgconfig:/app/share/pkgconfig:/app/usr/lib64/pkgconfig:/app/usr/lib/x86_64-linux-gnu/pkgconfig:/app/usr/lib/pkgconfig:/app/usr/share/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
     config-opts:
       - -Dgallium-drivers=zink
       - -Dvulkan-drivers=amd
