@@ -23,9 +23,6 @@ modules:
       - -Dglx=dri
       - -Dgbm=enabled
       - -Degl=enabled
-      - -Dgallium-va=disabled
-      - -Dgallium-vdpau=disabled
-      - -Dgallium-xa=disabled
       - -Dbuildtype=release
       - -Dstrip=true
     sources:
