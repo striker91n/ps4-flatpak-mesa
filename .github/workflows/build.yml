@@ -191,6 +191,19 @@ jobs:
 
       - name: Package install tree
         run: |
+          # The runtime resolves libs via ld.so.cache (no LD_LIBRARY_PATH). Our new
+          # libdisplay-info is not in that cache, so bake an $ORIGIN RUNPATH into the
+          # ICD, otherwise the loader can't find it and Vulkan silently fails.
+          sudo apt-get install -y patchelf >/dev/null 2>&1 || true
+          if command -v patchelf >/dev/null 2>&1; then
+            for so in $(find build/files -name 'libvulkan_radeon.so'); do
+              echo "patchelf $so"
+              patchelf --set-rpath '$ORIGIN' "$so"
+              readelf -d "$so" | grep -iE 'runpath|rpath' || true
+            done
+          else
+            echo "WARNING: patchelf unavailable; artifact will need manual RPATH fix"
+          fi
           tar -C build/files -czf mesa-ps4-flatpak.tar.gz .
           ls -lh mesa-ps4-flatpak.tar.gz
 
