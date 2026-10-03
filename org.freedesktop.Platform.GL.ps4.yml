@@ -15,7 +15,7 @@ modules:
   - name: python3-pyyaml
     buildsystem: simple
     build-commands:
-      - python3 -m pip install --no-deps --prefix=/usr .
+      - python3 -m pip install --no-deps --no-build-isolation --prefix=/usr .
     sources:
       - type: archive
         url: https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz
