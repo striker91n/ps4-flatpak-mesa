@@ -52,11 +52,10 @@ modules:
         PYTHONPATH: "/app/pylib"
         PKG_CONFIG_PATH: "/app/usr/lib64/pkgconfig:/app/usr/lib/x86_64-linux-gnu/pkgconfig:/app/usr/lib/pkgconfig:/app/usr/share/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
     config-opts:
-      - -Dgallium-drivers=radeonsi,llvmpipe,softpipe
+      - -Dgallium-drivers=zink
       - -Dvulkan-drivers=amd
       - -Dplatforms=wayland,x11
-      - -Dllvm=enabled
-      - -Dshared-llvm=enabled
+      - -Dllvm=disabled
       - -Dglx=dri
       - -Dgbm=enabled
       - -Degl=enabled

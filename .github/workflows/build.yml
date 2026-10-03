@@ -84,6 +84,10 @@ jobs:
           ccache --version | head -1
           rm -rf "$HOME/apt-lists" && mkdir -p "$HOME/apt-lists"
           sudo cp -a /var/lib/apt/lists/. "$HOME/apt-lists/" 2>/dev/null || true
+          sudo chown -R "$(id -u):$(id -g)" "$HOME/apt-lists" 2>/dev/null || true
+          sudo rm -f "$HOME/apt-lists/lock" 2>/dev/null || true
+          rm -rf "$HOME/apt-lists/partial" 2>/dev/null || true
+          echo "apt lists staged for cache:"; ls -la "$HOME/apt-lists" | head
 
       - name: Add Flathub and install SDK/Platform 25.08
         run: |
@@ -143,15 +147,18 @@ jobs:
             echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
             pkg-config --modversion libdrm_amdgpu || echo "libdrm_amdgpu still not found"
             pkg-config --modversion libdisplay-info || echo "libdisplay-info still not found"
+            echo "--- llvm availability ---"
+            command -v llvm-config || echo "no llvm-config"
+            pkg-config --modversion llvm 2>/dev/null || echo "no llvm.pc"
             echo "===== PyYAML ====="
             python3 -m pip install --quiet --no-deps --no-build-isolation --target /tmp/pylib "$PF/pyyaml-6.0.3"
             export PYTHONPATH=/tmp/pylib
-            echo "===== Mesa configure ====="
+            echo "===== Mesa configure (vulkan/RADV, no LLVM) ====="
             cd "$PF/mesa"
             meson setup /tmp/mesa-build --prefix=/usr . \
-              -Dgallium-drivers=radeonsi,llvmpipe,softpipe \
+              -Dgallium-drivers=zink \
               -Dvulkan-drivers=amd -Dplatforms=wayland,x11 \
-              -Dllvm=enabled -Dshared-llvm=enabled -Dglx=dri -Dgbm=enabled -Degl=enabled \
+              -Dllvm=disabled -Dglx=dri -Dgbm=enabled -Degl=enabled \
               -Dbuildtype=release -Dstrip=true
             echo "===== Mesa compile ====="
             ninja -C /tmp/mesa-build -j"$(nproc)"
