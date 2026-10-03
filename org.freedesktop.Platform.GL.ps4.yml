@@ -22,6 +22,31 @@ modules:
       - type: archive
         url: https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz
         sha256: d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f
+  - name: libdrm
+    buildsystem: meson
+    config-opts:
+      - -Damdgpu=enabled
+      - -Dradeon=enabled
+      - -Dintel=enabled
+      - -Dnouveau=enabled
+      - -Dvmwgfx=disabled
+      - -Dtests=false
+      - -Dman-pages=disabled
+      - -Dvalgrind=disabled
+    sources:
+      - type: git
+        url: https://gitlab.freedesktop.org/mesa/drm.git
+        tag: libdrm-2.4.134
+        commit: e984d448b8b17aab853369e6c203e53719f46de1
+  - name: libdisplay-info
+    buildsystem: meson
+    config-opts:
+      - -Dtests=false
+    sources:
+      - type: git
+        url: https://gitlab.freedesktop.org/emersion/libdisplay-info.git
+        tag: 0.2.0
+        commit: 66b802d05b374cd8f388dc6ad1e7ae4f08cb3300
   - name: mesa-ps4
     buildsystem: meson
     build-options:
