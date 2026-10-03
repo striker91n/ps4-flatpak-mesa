@@ -1,0 +1,46 @@
+name: build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install flatpak + flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak --version
+          flatpak-builder --version
+
+      - name: Add Flathub and install SDK/Platform 25.08
+        run: |
+          flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install -y --user flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
+
+      - name: Build Mesa (patched for PS4/Liverpool)
+        run: |
+          flatpak-builder --user --force-clean --repo=repo build org.freedesktop.Platform.GL.ps4.yml
+
+      - name: Show produced layout
+        run: |
+          echo "=== build/files tree (depth 4) ==="
+          find build/files -maxdepth 4 | sort | head -120
+
+      - name: Package install tree
+        run: |
+          tar -C build/files -czf mesa-ps4-flatpak.tar.gz .
+          ls -lh mesa-ps4-flatpak.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mesa-ps4-flatpak
+          path: mesa-ps4-flatpak.tar.gz
+          retention-days: 30
