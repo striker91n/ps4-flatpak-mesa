@@ -58,13 +58,32 @@ jobs:
           restore-keys: |
             flatpak-runtimes-25.08-
 
-      - name: Install flatpak + flatpak-builder + ccache
+      - name: Restore apt lists cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/apt-lists
+          key: apt-lists-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            apt-lists-${{ runner.os }}-
+
+      - name: Install flatpak + flatpak-builder + ccache (apt caches reused)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder ccache
+          if [ -d "$HOME/apt-lists" ]; then
+            sudo mkdir -p /var/lib/apt/lists
+            sudo cp -a "$HOME/apt-lists/." /var/lib/apt/lists/ 2>/dev/null || true
+            echo "restored apt lists from cache"
+          fi
+          if ! command -v flatpak-builder >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y flatpak flatpak-builder ccache
+          else
+            echo "flatpak-builder already present - skipping apt"
+          fi
           flatpak --version
           flatpak-builder --version
           ccache --version | head -1
+          rm -rf "$HOME/apt-lists" && mkdir -p "$HOME/apt-lists"
+          sudo cp -a /var/lib/apt/lists/. "$HOME/apt-lists/" 2>/dev/null || true
 
       - name: Add Flathub and install SDK/Platform 25.08
         run: |
@@ -118,9 +137,9 @@ jobs:
             ninja -C /tmp/drm-build install
             echo "===== libdisplay-info ====="
             cd "$PF/libdisplay-info"
-            meson setup /tmp/ldi-build --prefix="$PREFIX" -Dtests=false
+            meson setup /tmp/ldi-build --prefix="$PREFIX"
             ninja -C /tmp/ldi-build install
-            export PKG_CONFIG_PATH="$PREFIX/lib/x86_64-linux-gnu/pkgconfig:$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig"
+            export PKG_CONFIG_PATH="$PREFIX/lib64/pkgconfig:$PREFIX/lib/x86_64-linux-gnu/pkgconfig:$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig"
             echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
             pkg-config --modversion libdrm_amdgpu || echo "libdrm_amdgpu still not found"
             pkg-config --modversion libdisplay-info || echo "libdisplay-info still not found"
@@ -198,3 +217,10 @@ jobs:
         with:
           path: ~/.local/share/flatpak
           key: flatpak-runtimes-25.08-${{ runner.os }}-${{ github.run_id }}
+
+      - name: Save apt lists
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/apt-lists
+          key: apt-lists-${{ runner.os }}-${{ github.run_id }}

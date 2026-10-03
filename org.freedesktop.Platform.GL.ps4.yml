@@ -40,8 +40,6 @@ modules:
         commit: e984d448b8b17aab853369e6c203e53719f46de1
   - name: libdisplay-info
     buildsystem: meson
-    config-opts:
-      - -Dtests=false
     sources:
       - type: git
         url: https://gitlab.freedesktop.org/emersion/libdisplay-info.git
@@ -52,6 +50,7 @@ modules:
     build-options:
       env:
         PYTHONPATH: "/app/pylib"
+        PKG_CONFIG_PATH: "/app/usr/lib64/pkgconfig:/app/usr/lib/x86_64-linux-gnu/pkgconfig:/app/usr/lib/pkgconfig:/app/usr/share/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
     config-opts:
       - -Dgallium-drivers=radeonsi,llvmpipe,softpipe
       - -Dvulkan-drivers=amd
