@@ -12,8 +12,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache Flathub runtimes (SDK/Platform)
-        uses: actions/cache@v4
+      # ---------------------------------------------------------------- caches
+      - name: Restore Flathub runtimes cache
+        uses: actions/cache/restore@v4
         with:
           path: ~/.local/share/flatpak
           key: flatpak-runtimes-25.08-${{ runner.os }}
@@ -31,8 +32,70 @@ jobs:
           flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
           flatpak install -y --user flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
 
-      - name: Cache flatpak-builder state + ccache
-        uses: actions/cache@v4
+      # ============================ PREFLIGHT ============================
+      - name: "PREFLIGHT A - clone Mesa + verify/apply ps4-mesa.patch"
+        run: |
+          set -e
+          rm -rf preflight && mkdir -p preflight
+          git clone --depth 1 --branch mesa-26.2.2 https://gitlab.freedesktop.org/mesa/mesa.git preflight/mesa
+          cd preflight/mesa
+          echo "--- git apply --check ---"
+          git apply --check --verbose "$GITHUB_WORKSPACE/ps4-mesa.patch"
+          echo "--- applying ---"
+          git apply --verbose "$GITHUB_WORKSPACE/ps4-mesa.patch"
+          echo "OK: patch applies to mesa-26.2.2"
+
+      - name: "PREFLIGHT B - fetch PyYAML sdist (host, has network)"
+        run: |
+          set -e
+          cd preflight
+          curl -fsSLO https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz
+          tar xf pyyaml-6.0.3.tar.gz
+          ls -d pyyaml-6.0.3 mesa
+
+      - name: "PREFLIGHT C - SDK dependency report"
+        run: |
+          flatpak run --user --command=sh org.freedesktop.Sdk//25.08 -c '
+            echo "=========== tools ==========="
+            for t in cc gcc g++ meson ninja python3 pkg-config glslangValidator wayland-scanner; do
+              if command -v "$t" >/dev/null 2>&1; then printf "  ok      %s\n" "$t"; else printf "  MISSING %s\n" "$t"; fi
+            done
+            echo "=========== python ==========="
+            python3 --version
+            for m in setuptools mako packaging; do
+              if python3 -c "import $m" >/dev/null 2>&1; then printf "  ok      %s\n" "$m"; else printf "  MISSING %s\n" "$m"; fi
+            done
+            echo "=========== pkg-config ==========="
+            for p in libdrm libglvnd wayland-client x11 xcb xrandr xshmfence xcb-dri3 zlib zstd expat libelf libunwind; do
+              if pkg-config --exists "$p"; then printf "  ok      %s\n" "$p"; else printf "  MISSING %s\n" "$p"; fi
+            done
+            echo "=========== meson ==========="; meson --version
+          '
+
+      - name: "PREFLIGHT D - full compile of patched Mesa (proves a build can be done)"
+        run: |
+          set -e
+          export PF="$GITHUB_WORKSPACE/preflight"
+          flatpak run --user --filesystem="$PF" --env=PF="$PF" --command=sh org.freedesktop.Sdk//25.08 -c '
+            set -e
+            echo "===== PyYAML -> /tmp/pylib ====="
+            python3 -m pip install --quiet --no-deps --no-build-isolation --target /tmp/pylib "$PF/pyyaml-6.0.3"
+            export PYTHONPATH=/tmp/pylib
+            echo "===== meson configure (patched tree) ====="
+            cd "$PF/mesa"
+            meson setup /tmp/mesa-build . \
+              -Dgallium-drivers=radeonsi,llvmpipe,softpipe \
+              -Dvulkan-drivers=amd -Dplatforms=wayland,x11 \
+              -Dllvm=enabled -Dshared-llvm=enabled -Dglx=dri -Dgbm=enabled -Degl=enabled \
+              -Dbuildtype=release -Dstrip=true
+            echo "===== ninja compile ====="
+            ninja -C /tmp/mesa-build -j"$(nproc)"
+            echo "OK: patched Mesa compiled successfully - a build can be done"
+          '
+
+      # ============================ BUILD ============================
+      - name: Restore flatpak-builder state + ccache
+        uses: actions/cache/restore@v4
         with:
           path: |
             .flatpak-builder
@@ -61,3 +124,20 @@ jobs:
           name: mesa-ps4-flatpak
           path: mesa-ps4-flatpak.tar.gz
           retention-days: 30
+
+      # ------------------------------------------------ cache save (always)
+      - name: Save flatpak-builder state + ccache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .flatpak-builder
+            ~/.cache/ccache
+          key: flatpak-builder-${{ github.ref_name }}-${{ hashFiles('org.freedesktop.Platform.GL.ps4.yml','ps4-mesa.patch') }}
+
+      - name: Save Flathub runtimes
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.local/share/flatpak
+          key: flatpak-runtimes-25.08-${{ runner.os }}
