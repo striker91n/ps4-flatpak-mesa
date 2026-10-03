@@ -27,11 +27,13 @@ jobs:
           print("manifest id:", d["id"], "modules:", [m["name"] for m in d["modules"]])
           PY
 
-      - name: "PREFLIGHT 2 - clone Mesa + verify/apply ps4-mesa.patch (host, has network)"
+      - name: "PREFLIGHT 2 - clone Mesa + deps + verify/apply ps4-mesa.patch (host, has network)"
         run: |
           set -e
           rm -rf preflight && mkdir -p preflight
           git clone --depth 1 --branch mesa-26.2.2 https://gitlab.freedesktop.org/mesa/mesa.git preflight/mesa
+          git clone --depth 1 --branch libdrm-2.4.134 https://gitlab.freedesktop.org/mesa/drm.git preflight/drm
+          git clone --depth 1 --branch 0.2.0 https://gitlab.freedesktop.org/emersion/libdisplay-info.git preflight/libdisplay-info
           cd preflight/mesa
           echo "--- git apply --check ---"
           git apply --check --verbose "$GITHUB_WORKSPACE/ps4-mesa.patch"
@@ -101,25 +103,40 @@ jobs:
             ls /usr/lib/pkgconfig 2>/dev/null | head -40
           '
 
-      - name: "PREFLIGHT 5 - full compile of patched Mesa (proves a build can be done)"
+      - name: "PREFLIGHT 5 - build deps + full compile of patched Mesa (proves a build can be done)"
         run: |
           set -e
           export PF="$GITHUB_WORKSPACE/preflight"
           flatpak run --user --filesystem="$PF" --env=PF="$PF" --command=sh org.freedesktop.Sdk//25.08 -c '
             set -e
-            echo "===== PyYAML -> /tmp/pylib ====="
+            export PREFIX=/tmp/deps
+            echo "===== libdrm (amdgpu) ====="
+            cd "$PF/drm"
+            meson setup /tmp/drm-build --prefix="$PREFIX" \
+              -Damdgpu=enabled -Dradeon=enabled -Dintel=enabled -Dnouveau=enabled \
+              -Dvmwgfx=disabled -Dtests=false -Dman-pages=disabled
+            ninja -C /tmp/drm-build install
+            echo "===== libdisplay-info ====="
+            cd "$PF/libdisplay-info"
+            meson setup /tmp/ldi-build --prefix="$PREFIX" -Dtests=false
+            ninja -C /tmp/ldi-build install
+            export PKG_CONFIG_PATH="$PREFIX/lib/x86_64-linux-gnu/pkgconfig:$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig"
+            echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+            pkg-config --modversion libdrm_amdgpu || echo "libdrm_amdgpu still not found"
+            pkg-config --modversion libdisplay-info || echo "libdisplay-info still not found"
+            echo "===== PyYAML ====="
             python3 -m pip install --quiet --no-deps --no-build-isolation --target /tmp/pylib "$PF/pyyaml-6.0.3"
             export PYTHONPATH=/tmp/pylib
-            echo "===== meson configure (patched tree) ====="
+            echo "===== Mesa configure ====="
             cd "$PF/mesa"
-            meson setup /tmp/mesa-build . \
+            meson setup /tmp/mesa-build --prefix=/usr . \
               -Dgallium-drivers=radeonsi,llvmpipe,softpipe \
               -Dvulkan-drivers=amd -Dplatforms=wayland,x11 \
               -Dllvm=enabled -Dshared-llvm=enabled -Dglx=dri -Dgbm=enabled -Degl=enabled \
               -Dbuildtype=release -Dstrip=true
-            echo "===== ninja compile ====="
+            echo "===== Mesa compile ====="
             ninja -C /tmp/mesa-build -j"$(nproc)"
-            echo "OK: patched Mesa compiled successfully - a build can be done"
+            echo "OK: deps + patched Mesa compiled successfully - a build can be done"
           '
 
       # ============================ BUILD ============================
