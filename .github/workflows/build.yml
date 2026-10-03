@@ -12,21 +12,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install flatpak + flatpak-builder
+      - name: Cache Flathub runtimes (SDK/Platform)
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/flatpak
+          key: flatpak-runtimes-25.08-${{ runner.os }}
+
+      - name: Install flatpak + flatpak-builder + ccache
         run: |
           sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder
+          sudo apt-get install -y flatpak flatpak-builder ccache
           flatpak --version
           flatpak-builder --version
+          ccache --version | head -1
 
       - name: Add Flathub and install SDK/Platform 25.08
         run: |
           flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
           flatpak install -y --user flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
 
+      - name: Cache flatpak-builder state + ccache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .flatpak-builder
+            ~/.cache/ccache
+          key: flatpak-builder-${{ github.ref_name }}-${{ hashFiles('org.freedesktop.Platform.GL.ps4.yml','ps4-mesa.patch') }}
+          restore-keys: |
+            flatpak-builder-${{ github.ref_name }}-
+
       - name: Build Mesa (patched for PS4/Liverpool)
         run: |
-          flatpak-builder --user --force-clean --repo=repo build org.freedesktop.Platform.GL.ps4.yml
+          flatpak-builder --user --ccache --force-clean --repo=repo build org.freedesktop.Platform.GL.ps4.yml
 
       - name: Show produced layout
         run: |
