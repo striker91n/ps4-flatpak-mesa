@@ -31,7 +31,7 @@ jobs:
         run: |
           set -e
           rm -rf preflight && mkdir -p preflight
-          git clone --depth 1 --branch mesa-26.2.2 https://gitlab.freedesktop.org/mesa/mesa.git preflight/mesa
+          git clone --depth 1 --branch mesa-26.2.5 https://gitlab.freedesktop.org/mesa/mesa.git preflight/mesa
           git clone --depth 1 --branch libdrm-2.4.134 https://gitlab.freedesktop.org/mesa/drm.git preflight/drm
           git clone --depth 1 --branch 0.2.0 https://gitlab.freedesktop.org/emersion/libdisplay-info.git preflight/libdisplay-info
           cd preflight/mesa
@@ -39,7 +39,7 @@ jobs:
           git apply --check --verbose "$GITHUB_WORKSPACE/ps4-mesa.patch"
           echo "--- applying ---"
           git apply --verbose "$GITHUB_WORKSPACE/ps4-mesa.patch"
-          echo "OK: ps4-mesa.patch applies to mesa-26.2.2"
+          echo "OK: ps4-mesa.patch applies to mesa-26.2.5"
 
       - name: "PREFLIGHT 3 - fetch PyYAML sdist (host, has network)"
         run: |
