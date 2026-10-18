@@ -59,7 +59,7 @@ modules:
     sources:
       - type: git
         url: https://gitlab.freedesktop.org/mesa/mesa.git
-        tag: mesa-26.2.2
-        commit: 997191be71afdb2234fa6a7275bfb8475c22250f
+        tag: mesa-26.2.5
+        commit: ddaf85e353442d9d7f192fdcf1823e652e3f2ee3
       - type: patch
         path: ps4-mesa.patch
